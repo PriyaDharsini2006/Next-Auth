@@ -1,16 +1,14 @@
-// app/api/auth/verify/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const token = searchParams.get('token');
+    const token = searchParams.get("token");
 
     if (!token) {
-      return NextResponse.json(
-        { message: "Missing verification token" },
-        { status: 400 }
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL}/pages/auth/register?error=Missing verification token`
       );
     }
 
@@ -19,26 +17,40 @@ export async function GET(req: Request) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { message: "Invalid verification token" },
-        { status: 400 }
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL}/pages/auth/register?error=Invalid verification token`
       );
     }
 
+    
+    if (!user.verifyTokenExpires || user.verifyTokenExpires < new Date()) {
+     
+      await prisma.user.delete({
+        where: { id: user.id },
+      });
+
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL}/pages/auth/register?error=Verification link expired. Please register again.`
+      );
+    }
+
+    
     await prisma.user.update({
       where: { id: user.id },
       data: {
         emailVerified: new Date(),
         verifyToken: null,
+        verifyTokenExpires: null,
       },
     });
 
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?message=Email verified successfully. You can now login.`);
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL}/pages/auth/login?message=Email verified successfully. You can now login.`
+    );
   } catch (error) {
     console.error("Verification error:", error);
-    return NextResponse.json(
-      { message: "Error verifying email" },
-      { status: 500 }
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL}/pages/auth/register?error=Error verifying email`
     );
   }
 }

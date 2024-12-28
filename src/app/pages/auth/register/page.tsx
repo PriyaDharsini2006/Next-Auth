@@ -36,7 +36,7 @@ export default function Register() {
         throw new Error(data.message || "Registration failed");
       }
 
-      router.push("/?message=Registration successful! Please login.");
+      router.push("/?message=check mail , verify ! Please login.");
     } catch (err: any) {
       setError(err.message);
     }

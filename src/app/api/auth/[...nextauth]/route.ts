@@ -2,8 +2,13 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcrypt";
 import { prisma } from "@/lib/prisma";
+import GoogleProvider from "next-auth/providers/google";
 const handler = NextAuth({
   providers: [
+    GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -52,6 +57,25 @@ const handler = NextAuth({
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
+    async signIn({ user, account }) {
+        if (account?.provider === "google") {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email! },
+          });
+  
+          if (!existingUser) {
+            await prisma.user.create({
+              data: {
+                email: user.email!,
+                name: null,
+                password: "null",
+                emailVerified: new Date(), 
+              },
+            });
+          }
+        }
+        return true;
+      },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
